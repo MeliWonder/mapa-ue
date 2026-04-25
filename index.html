@@ -15,23 +15,19 @@
             --republica: #2f855a; /* Verde */
             --eu-blue: #003399;
             --white: #ffffff;
+            --accent: #f6e05e;
         }
 
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: #e2e8f0; overflow: hidden; }
         #map { height: 100vh; width: 100vw; background: #aadaff; }
 
         /* Buscador */
-        .search-container {
-            position: absolute; top: 20px; left: 20px; z-index: 1000; width: 260px;
-        }
-        #countrySearch {
-            width: 100%; padding: 12px 16px; border-radius: 10px; border: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 1rem; outline: none;
-        }
+        .search-container { position: absolute; top: 20px; left: 20px; z-index: 1000; width: 260px; }
+        #countrySearch { width: 100%; padding: 12px 16px; border-radius: 10px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 1rem; outline: none; }
 
         /* Panel de Información */
         .info-panel {
-            position: absolute; top: 20px; right: 20px; width: 360px; max-height: 90vh;
+            position: absolute; top: 20px; right: 20px; width: 380px; max-height: 90vh;
             background: rgba(255, 255, 255, 0.98); border-radius: 16px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.25); padding: 20px;
             z-index: 1000; display: none; overflow-y: auto; border: 1px solid #cbd5e0;
@@ -41,14 +37,37 @@
         .flag-img { width: 50px; border-radius: 4px; border: 1px solid #ddd; }
         .country-name { margin: 0; font-size: 1.5rem; color: var(--eu-blue); font-weight: 700; }
 
-        .data-row { display: flex; align-items: center; gap: 15px; background: #f7fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; }
+        .data-row { 
+            display: flex; align-items: center; gap: 15px; background: #f7fafc; 
+            padding: 12px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .data-row:hover { background: #edf2f7; border-color: var(--eu-blue); transform: translateY(-2px); }
         .photo { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); background: #eee; }
         
         .label { font-size: 0.65rem; text-transform: uppercase; color: #718096; font-weight: 700; letter-spacing: 0.5px; }
         .val { font-size: 0.95rem; font-weight: 700; color: #2d3748; display: block; line-height: 1.2; }
         .party-full { font-size: 0.8rem; color: #4a5568; font-style: italic; display: block; margin-top: 2px; }
 
-        .currency-badge { background: #f6e05e; color: #744210; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+        .currency-section { background: #fffcf0; padding: 12px; border-radius: 12px; border: 1px solid #f6e05e; }
+        .currency-badge { background: var(--accent); color: #744210; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+        .prev-currency { font-size: 0.82rem; color: #718096; margin-top: 5px; display: block; line-height: 1.3; }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background-color: white; margin: 5% auto; padding: 30px; border-radius: 20px;
+            width: 550px; max-width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .modal-header { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        .history-item { margin-bottom: 15px; padding-left: 15px; border-left: 3px solid var(--eu-blue); }
+        .history-date { font-weight: 700; color: var(--eu-blue); font-size: 0.9rem; }
+        .close-modal { position: absolute; right: 20px; top: 15px; font-size: 28px; font-weight: bold; cursor: pointer; color: #aaa; }
+        .close-modal:hover { color: black; }
 
         .legend { position: absolute; bottom: 30px; left: 20px; background: white; padding: 10px; border-radius: 8px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 0.8rem; }
         .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; }
@@ -56,6 +75,7 @@
 
         @media (max-width: 768px) {
             .info-panel { width: calc(100% - 40px); top: auto; bottom: 20px; left: 20px; right: 20px; max-height: 45vh; }
+            .modal-content { width: 95%; margin: 10% auto; padding: 20px; }
         }
     </style>
 </head>
@@ -74,54 +94,227 @@
     <div id="map"></div>
     <div id="infoPanel" class="info-panel"><div id="content"></div></div>
 
+    <!-- Modal para información extendida -->
+    <div id="bioModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeBio()">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // BASE DE DATOS DE LOS 27 PAÍSES
-        // Nota: leaderPhoto y statePhoto apuntan a una carpeta local llamada "fotos/"
+        let lockedCountry = null;
+
+        // BASE DE DATOS ACTUALIZADA CON TU INFORMACIÓN
         const euData = {
-            "Austria": { name: "Austria", capital: "Viena", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/at.png", leader: "Christian Stocker", leaderParty: "ÖVP", leaderPartyFull: "Partido Popular Austríaco", leaderPhoto: "fotos/austria-christian-stocker.jpg", stateHead: "Alexander Van der Bellen", stateType: "República Federal", statePhoto: "fotos/austria-alexander-van-der-bellen.jpg" },
-            "Belgium": { name: "Bélgica", capital: "Bruselas", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/be.png", leader: "Bart De Wever", leaderParty: "NVA", leaderPartyFull: "Nueva Alianza Flamenca", leaderPhoto: "fotos/belgica-bart-de-wever.jpg", stateHead: "Felipe de Bélgica", stateType: "Monarquía Constitucional", statePhoto: "fotos/belgica-felipe-de-belgica.jpg" },
-            "Bulgaria": { name: "Bulgaria", capital: "Sofía", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/bg.png", leader: "Andréi Atánasov Gyúrov", leaderParty: "PP", leaderPartyFull: "Continuamos el Cambio (Prodŭlzhavame promyanata)", leaderPhoto: "fotos/bulgaria-andrey-gurov.jpg", stateHead: "Iliana Yotova", stateType: "República Parlamentaria", statePhoto: "fotos/bulgaria-iliana-yotova.jpg" },
-            "Croatia": { name: "Croacia", capital: "Zagreb", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/hr.png", leader: "Andrej Plenković", leaderParty: "HDZ", leaderPartyFull: "Unión Democrática Croata", leaderPhoto: "fotos/croacia-andrej-plenkovic.jpg", stateHead: "Zoran Milanović", stateType: "República Parlamentaria", statePhoto: "fotos/croacia-zoran-milanovic.jpg" },
-            "Cyprus": { name: "Chipre", capital: "Nicosia", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/cy.png", leader: "Nikos Christodoulides", leaderParty: "Indep.", leaderPartyFull: "Independiente", leaderPhoto: "fotos/chipre-nikos-christodoulides.jpg" },
-            "Czech Republic": { name: "Chequia", capital: "Praga", regime: "Republic", currency: "Corona Checa (CZK)", flag: "https://flagcdn.com/w80/cz.png", leader: "Andrej Babiš", leaderParty: "ANO 2011", leaderPartyFull: "Alianza de Ciudadanos Descontentos", leaderPhoto: "fotos/chequia-andrej-babis.jpg", stateHead: "Petr Pavel", stateType: "República Parlamentaria", statePhoto: "fotos/chequia-petr-pavel.jpg" },
-            "Denmark": { name: "Dinamarca", capital: "Copenhague", regime: "Monarchy", currency: "Corona Danesa (DKK)", flag: "https://flagcdn.com/w80/dk.png", leader: "Mette Frederiksen", leaderParty: "S", leaderPartyFull: "Socialdemócratas", leaderPhoto: "fotos/dinamarca-mette-frederiksen.jpg", stateHead: "Federico X", stateType: "Monarquía Constitucional", statePhoto: "fotos/dinamarca-federico-x.jpg" },
-            "Estonia": { name: "Estonia", capital: "Tallín", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/ee.png", leader: "Kristen Michal", leaderParty: "ER", leaderPartyFull: "Partido Reformista Estonio", leaderPhoto: "fotos/estonia-kristen-michal.jpg", stateHead: "Alar Karis", stateType: "República Parlamentaria", statePhoto: "fotos/estonia-alar-karis.jpg" },
-            "Finland": { name: "Finlandia", capital: "Helsinki", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/fi.png", leader: "Petteri Orpo", leaderParty: "Kok.", leaderPartyFull: "Partido de la Coalición Nacional", leaderPhoto: "fotos/finlandia-petteri-orpo.jpg", stateHead: "Alexander Stubb", stateType: "República Parlamentaria", statePhoto: "fotos/finlandia-alexander-stubb.jpg" },
-            "France": { name: "Francia", capital: "París", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/fr.png", leader: "Sébastien Lecornu", leaderParty: "RE", leaderPartyFull: "Renacimiento", leaderPhoto: "fotos/francia-sebastien-lecornu.jpg", stateHead: "Emmanuel Macron", stateType: "República Semipresidencial", statePhoto: "fotos/francia-emmanuelle-macron.jpg" },
-            "Germany": { name: "Alemania", capital: "Berlín", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/de.png", leader: "Friedrich Merz", leaderParty: "CDU", leaderPartyFull: "Unión Demócrata Cristiana", leaderPhoto: "fotos/alemania-friedrich-merz.jpg", stateHead: "Frank-Walter Steinmeier", stateType: "República Federal", statePhoto: "fotos/alemania-frank-walter-steinmeier.jpg" },
-            "Greece": { name: "Grecia", capital: "Atenas", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/gr.png", leader: "Kyriakos Mitsotakis", leaderParty: "ND", leaderPartyFull: "Nueva Democracia", leaderPhoto: "fotos/grecia-kyriakos-mitsotakis.jpg", stateHead: "Konstantinos Tasoulas", stateType: "República Parlamentaria", statePhoto: "fotos/grecia-konstantinos-tasoulas.jpg" },
-            "Hungary": { name: "Hungría", capital: "Budapest", regime: "Republic", currency: "Florín (HUF)", flag: "https://flagcdn.com/w80/hu.png", leader: "Péter Magyar", leaderParty: "TISZA", leaderPartyFull: "Tisza-Partido Respeto y Libertad", leaderPhoto: "fotos/hungria-peter-magyar.jpg", stateHead: "Tamás Sulyok", stateType: "República Parlamentaria", statePhoto: "fotos/hungria-tamas-sulyok.jpg" },
-            "Ireland": { name: "Irlanda", capital: "Dublín", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/ie.png", leader: "Micheál Martin", leaderParty: "FF", leaderPartyFull: "Fianna Fáil (Partido Republicano)", leaderPhoto: "fotos/irlanda-micheal-martin.png", stateHead: "Catherine Connolly", stateType: "República Parlamentaria", statePhoto: "fotos/irlanda-catherine-connolly.jpg" },
-            "Italy": { name: "Italia", capital: "Roma", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/it.png", leader: "Giorgia Meloni", leaderParty: "FdI", leaderPartyFull: "Fratelli d'Italia (Hermanos de Italia)", leaderPhoto: "fotos/italia-giorgia-meloni.png", stateHead: "Sergio Mattarella", stateType: "República Parlamentaria", statePhoto: "fotos/italia-sergio_mattarella.jpg" },
-            "Latvia": { name: "Letonia", capital: "Riga", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/lv.png", leader: "Evika Siliņa", leaderParty: "V", leaderPartyFull: "Nueva Unidad", leaderPhoto: "fotos/letonia-evika-silina.jpg", stateHead: "Edgars Rinkēvičs", stateType: "República Parlamentaria", statePhoto: "fotos/letonia-edgars-rinkevics.jpg" },
-            "Lithuania": { name: "Lituania", capital: "Vilna", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/lt.png", leader: "Inga Ruginienė", leaderParty: "LSDP", leaderPartyFull: "Partido Socialdemócrata Lituano", leaderPhoto: "fotos/lituania-inga-ruginiene.jpeg", stateHead: "Gitanas Nausėda", stateType: "República Parlamentaria", statePhoto: "fotos/lituania-gitanas-nauseda.jpg" },
-            "Luxembourg": { name: "Luxemburgo", capital: "Luxemburgo", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/lu.png", leader: "Luc Frieden", leaderParty: "CSV", leaderPartyFull: "Partido Popular Social Cristiano", leaderPhoto: "fotos/luxemburgo-luc-frieden.jpg", stateHead: "Guillermo V de Luxemburgo", stateType: "Monarquía Constitucional", statePhoto: "fotos/luxemburgo-guillermo-v.jpg" },
-            "Malta": { name: "Malta", capital: "La Valeta", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/mt.png", leader: "Robert Abela", leaderParty: "PL", leaderPartyFull: "Partido Laborista", leaderPhoto: "fotos/malta-robert-abela.jpg", stateHead: "Myriam Spiteri Debono", stateType: "República Parlamentaria", statePhoto: "fotos/malta-myriam-spiteri-debono.jpg" },
-            "Netherlands": { name: "Países Bajos", capital: "Ámsterdam", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/nl.png", leader: "Rob Jetten", leaderParty: "D66.", leaderPartyFull: "Demócratas 66", leaderPhoto: "fotos/paises-bajos-rob-jetten.jpg", stateHead: "Guillermo Alejandro", stateType: "Monarquía Constitucional", statePhoto: "fotos/paises-bajos-guillermo-alejandro.jpeg" },
-            "Poland": { name: "Polonia", capital: "Varsovia", regime: "Republic", currency: "Zloty (PLN)", flag: "https://flagcdn.com/w80/pl.png", leader: "Donald Tusk", leaderParty: "PO", leaderPartyFull: "Plataforma Cívica", leaderPhoto: "fotos/polonia-donald-tusk.png", stateHead: "Karol Nawrocki", stateType: "República Parlamentaria", statePhoto: "fotos/polonia-karol-nawrocki.jpg" },
-            "Portugal": { name: "Portugal", capital: "Lisboa", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/pt.png", leader: "Luís Montenegro", leaderParty: "PSD", leaderPartyFull: "Partido Social Demócrata", leaderPhoto: "fotos/portugal-luis-montenegro.jpg", stateHead: "Antonio José Seguro", stateType: "República Semipresidencial", statePhoto: "fotos/portugal-antonio-jose-seguro.png" },
-            "Romania": { name: "Rumanía", capital: "Bucarest", regime: "Republic", currency: "Leu (RON)", flag: "https://flagcdn.com/w80/ro.png", leader: "Illie Bolojan", leaderParty: "PNL", leaderPartyFull: "Partido Nacional Liberal", leaderPhoto: "fotos/rumania-illie-bolojan.jpg", stateHead: "Nicușor Dan", stateType: "República Semipresidencial", statePhoto: "fotos/rumania-nicusor-dan.jpg" },
-            "Slovakia": { name: "Eslovaquia", capital: "Bratislava", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/sk.png", leader: "Robert Fico", leaderParty: "Smer-SD", leaderPartyFull: "Dirección - Socialdemocracia", leaderPhoto: "fotos/eslovaquia-robert-fico.png", stateHead: "Peter Pellegrini", stateType: "República Parlamentaria", statePhoto: "fotos/eslovaquia-peter-pellegrini.jpg" },
-            "Slovenia": { name: "Eslovenia", capital: "Liubliana", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/si.png", leader: "Robert Golob", leaderParty: "GS", leaderPartyFull: "Movimiento Libertad", leaderPhoto: "fotos/eslovenia-robert-golob.jpg", stateHead: "Nataša Pirc Musar", stateType: "República Parlamentaria", statePhoto: "fotos/eslovenia-natasa-pirc-musar.jpg" },
-            "Spain": { name: "España", capital: "Madrid", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/es.png", leader: "Pedro Sánchez", leaderParty: "PSOE", leaderPartyFull: "Partido Socialista Obrero Español", leaderPhoto: "fotos/espana-pedro-sanchez.jpg", stateHead: "Felipe VI", stateType: "Monarquía Parlamentaria", statePhoto: "fotos/espana-felipe-vi.jpg" },
-            "Sweden": { name: "Suecia", capital: "Estocolmo", regime: "Monarchy", currency: "Corona Sueca (SEK)", flag: "https://flagcdn.com/w80/se.png", leader: "Ulf Kristersson", leaderParty: "M", leaderPartyFull: "Partido Moderado", leaderPhoto: "fotos/suecia-ulf-kristersson.jpg", stateHead: "Carlos XVI Gustavo", stateType: "Monarquía Constitucional", statePhoto: "fotos/suecia-carlos-xvi-gustavo.jpg" }
+            "Austria": { 
+                name: "Austria", capital: "Viena", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Chelín Austríaco (öS)", prevCurrencyRange: "1945-2001",
+                flag: "https://flagcdn.com/w80/at.png", 
+                leader: "Christian Stocker", leaderParty: "ÖVP", leaderPartyFull: "Partido Popular Austríaco", leaderPhoto: "fotos/austria-christian-stocker.jpg",
+                stateHead: "Alexander Van der Bellen", stateHeadParty: "Grüne", stateHeadPartyFull: "Los Verdes", stateType: "República Federal", statePhoto: "fotos/austria-alexander-van-der-bellen.jpg"
+            },
+            "Belgium": { 
+                name: "Bélgica", capital: "Bruselas", regime: "Monarchy", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Franco Belga (BF)", prevCurrencyRange: "1832-2001",
+                flag: "https://flagcdn.com/w80/be.png", 
+                leader: "Bart De Wever", leaderParty: "NVA", leaderPartyFull: "Nueva Alianza Flamenca", leaderPhoto: "fotos/belgica-bart-de-wever.jpg", 
+                stateHead: "Felipe de Bélgica", stateType: "Monarquía Constitucional", statePhoto: "fotos/belgica-felipe-de-belgica.jpg" 
+            },
+            "Bulgaria": { 
+                name: "Bulgaria", capital: "Sofía", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "En proceso (Lev actualmente)", prevCurrency: "Lev (BGN)", prevCurrencyRange: "1881-Presente",
+                flag: "https://flagcdn.com/w80/bg.png", 
+                leader: "Andréi Atánasov Gyúrov", leaderParty: "PP", leaderPartyFull: "Continuamos el Cambio (Prodŭlzhavame promyanata)", leaderPhoto: "fotos/bulgaria-andrey-gurov.jpg", 
+                stateHead: "Iliana Yotova", stateHeadParty: "BSP", stateHeadPartyFull: "Partido Socialista Búlgaro", stateType: "República Parlamentaria", statePhoto: "fotos/bulgaria-iliana-yotova.jpg" 
+            },
+            "Croatia": { 
+                name: "Croacia", capital: "Zagreb", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2023", prevCurrency: "Kuna (kn)", prevCurrencyRange: "1994-2022",
+                flag: "https://flagcdn.com/w80/hr.png", 
+                leader: "Andrej Plenković", leaderParty: "HDZ", leaderPartyFull: "Unión Democrática Croata", leaderPhoto: "fotos/croacia-andrej-plenkovic.jpg", 
+                stateHead: "Zoran Milanović", stateHeadParty: "SDP", stateHeadPartyFull: "Partido Socialdemócrata de Croacia", stateType: "República Parlamentaria", statePhoto: "fotos/croacia-zoran-milanovic.jpg" 
+            },
+            "Cyprus": { 
+                name: "Chipre", capital: "Nicosia", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2008", prevCurrency: "Libra Chipriota (£)", prevCurrencyRange: "1879-2007",
+                flag: "https://flagcdn.com/w80/cy.png", 
+                leader: "Nikos Christodoulides", leaderParty: "Indep.", leaderPartyFull: "Independiente", leaderPhoto: "fotos/chipre-nikos-christodoulides.jpg",
+                stateHead: "Nikos Christodoulides", stateType: "República Presidencial", // Chipre unificado
+                leaderHistory: `<div class="history-item"><span class="history-date">2023-Presente</span><p>Elegido directamente como Jefe de Estado y de Gobierno en la segunda vuelta de las elecciones de 2023.</p></div>`
+            },
+            "Czech Republic": { 
+                name: "Chequia", capital: "Praga", regime: "Republic", 
+                currency: "Corona Checa (CZK)", currencySince: "1993", prevCurrency: "Corona Checoslovaca (Kčs)", prevCurrencyRange: "1919-1992",
+                flag: "https://flagcdn.com/w80/cz.png", 
+                leader: "Andrej Babiš", leaderParty: "ANO 2011", leaderPartyFull: "Alianza de Ciudadanos Descontentos", leaderPhoto: "fotos/chequia-andrej-babis.jpg", 
+                stateHead: "Petr Pavel", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/chequia-petr-pavel.jpg" 
+            },
+            "Denmark": { 
+                name: "Dinamarca", capital: "Copenhague", regime: "Monarchy", 
+                currency: "Corona Danesa (DKK)", currencySince: "1875", prevCurrency: "Rigsdaler", prevCurrencyRange: "1813-1873",
+                flag: "https://flagcdn.com/w80/dk.png", 
+                leader: "Mette Frederiksen", leaderParty: "S", leaderPartyFull: "Socialdemócratas", leaderPhoto: "fotos/dinamarca-mette-frederiksen.jpg", 
+                stateHead: "Federico X", stateType: "Monarquía Constitucional", statePhoto: "fotos/dinamarca-federico-x.jpg" 
+            },
+            "Estonia": { 
+                name: "Estonia", capital: "Tallín", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2011", prevCurrency: "Corona Estonia (kr)", prevCurrencyRange: "1992-2010",
+                flag: "https://flagcdn.com/w80/ee.png", 
+                leader: "Kristen Michal", leaderParty: "ER", leaderPartyFull: "Partido Reformista Estonio", leaderPhoto: "fotos/estonia-kristen-michal.jpg", 
+                stateHead: "Alar Karis", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/estonia-alar-karis.jpg" 
+            },
+            "Finland": { 
+                name: "Finlandia", capital: "Helsinki", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Marco Finlandés (mk)", prevCurrencyRange: "1860-2001",
+                flag: "https://flagcdn.com/w80/fi.png", 
+                leader: "Petteri Orpo", leaderParty: "Kok.", leaderPartyFull: "Partido de la Coalición Nacional", leaderPhoto: "fotos/finlandia-petteri-orpo.jpg", 
+                stateHead: "Alexander Stubb", stateHeadParty: "Kok.", stateHeadPartyFull: "Partido de la Coalición Nacional", stateType: "República Parlamentaria", statePhoto: "fotos/finlandia-alexander-stubb.jpg" 
+            },
+            "France": { 
+                name: "Francia", capital: "París", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Franco Francés (₣)", prevCurrencyRange: "1360-2001",
+                flag: "https://flagcdn.com/w80/fr.png", 
+                leader: "Sébastien Lecornu", leaderParty: "RE", leaderPartyFull: "Renacimiento", leaderPhoto: "fotos/francia-sebastien-lecornu.jpg", 
+                stateHead: "Emmanuel Macron", stateHeadParty: "RE", stateHeadPartyFull: "Renacimiento", stateType: "República Semipresidencial", statePhoto: "fotos/francia-emmanuelle-macron.jpg" 
+            },
+            "Germany": { 
+                name: "Alemania", capital: "Berlín", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Marco Alemán (DM)", prevCurrencyRange: "1948-2001",
+                flag: "https://flagcdn.com/w80/de.png", 
+                leader: "Friedrich Merz", leaderParty: "CDU", leaderPartyFull: "Unión Demócrata Cristiana", leaderPhoto: "fotos/alemania-friedrich-merz.jpg", 
+                stateHead: "Frank-Walter Steinmeier", stateHeadParty: "SPD", stateHeadPartyFull: "Partido Socialdemócrata de Alemania", stateType: "República Federal", statePhoto: "fotos/alemania-frank-walter-steinmeier.jpg" 
+            },
+            "Greece": { 
+                name: "Grecia", capital: "Atenas", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Dracma (₯)", prevCurrencyRange: "1832-2001",
+                flag: "https://flagcdn.com/w80/gr.png", 
+                leader: "Kyriakos Mitsotakis", leaderParty: "ND", leaderPartyFull: "Nueva Democracia", leaderPhoto: "fotos/grecia-kyriakos-mitsotakis.jpg", 
+                stateHead: "Konstantinos Tasoulas", stateHeadParty: "ND", stateHeadPartyFull: "Nueva Democracia", stateType: "República Parlamentaria", statePhoto: "fotos/grecia-konstantinos-tasoulas.jpg" 
+            },
+            "Hungary": { 
+                name: "Hungría", capital: "Budapest", regime: "Republic", 
+                currency: "Florín (HUF)", currencySince: "1946", prevCurrency: "Pengo", prevCurrencyRange: "1927-1946",
+                flag: "https://flagcdn.com/w80/hu.png", 
+                leader: "Péter Magyar", leaderParty: "TISZA", leaderPartyFull: "Tisza-Partido Respeto y Libertad", leaderPhoto: "fotos/hungria-peter-magyar.jpg", 
+                stateHead: "Tamás Sulyok", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/hungria-tamas-sulyok.jpg" 
+            },
+            "Ireland": { 
+                name: "Irlanda", capital: "Dublín", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Libra Irlandesa (£)", prevCurrencyRange: "1928-2001",
+                flag: "https://flagcdn.com/w80/ie.png", 
+                leader: "Micheál Martin", leaderParty: "FF", leaderPartyFull: "Fianna Fáil (Partido Republicano)", leaderPhoto: "fotos/irlanda-micheal-martin.png", 
+                stateHead: "Catherine Connolly", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/irlanda-catherine-connolly.jpg" 
+            },
+            "Italy": { 
+                name: "Italia", capital: "Roma", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Lira Italiana (₤)", prevCurrencyRange: "1861-2001",
+                flag: "https://flagcdn.com/w80/it.png", 
+                leader: "Giorgia Meloni", leaderParty: "FdI", leaderPartyFull: "Fratelli d'Italia (Hermanos de Italia)", leaderPhoto: "fotos/italia-giorgia-meloni.png", 
+                stateHead: "Sergio Mattarella", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/italia-sergio_mattarella.jpg" 
+            },
+            "Latvia": { 
+                name: "Letonia", capital: "Riga", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2014", prevCurrency: "Lats (Ls)", prevCurrencyRange: "1993-2013",
+                flag: "https://flagcdn.com/w80/lv.png", 
+                leader: "Evika Siliņa", leaderParty: "V", leaderPartyFull: "Nueva Unidad", leaderPhoto: "fotos/letonia-evika-silina.jpg", 
+                stateHead: "Edgars Rinkēvičs", stateHeadParty: "V", stateHeadPartyFull: "Nueva Unidad", stateType: "República Parlamentaria", statePhoto: "fotos/letonia-edgars-rinkevics.jpg" 
+            },
+            "Lithuania": { 
+                name: "Lituania", capital: "Vilna", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2015", prevCurrency: "Litas (Lt)", prevCurrencyRange: "1993-2014",
+                flag: "https://flagcdn.com/w80/lt.png", 
+                leader: "Inga Ruginienė", leaderParty: "LSDP", leaderPartyFull: "Partido Socialdemócrata Lituano", leaderPhoto: "fotos/lituania-inga-ruginiene.jpeg", 
+                stateHead: "Gitanas Nausėda", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/lituania-gitanas-nauseda.jpg" 
+            },
+            "Luxembourg": { 
+                name: "Luxemburgo", capital: "Luxemburgo", regime: "Monarchy", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Franco Luxemburgués (F)", prevCurrencyRange: "1854-2001",
+                flag: "https://flagcdn.com/w80/lu.png", 
+                leader: "Luc Frieden", leaderParty: "CSV", leaderPartyFull: "Partido Popular Social Cristiano", leaderPhoto: "fotos/luxemburgo-luc-frieden.jpg", 
+                stateHead: "Guillermo V de Luxemburgo", stateType: "Monarquía Constitucional", statePhoto: "fotos/luxemburgo-guillermo-v.jpg" 
+            },
+            "Malta": { 
+                name: "Malta", capital: "La Valeta", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2008", prevCurrency: "Libra Maltesa (Lm)", prevCurrencyRange: "1972-2007",
+                flag: "https://flagcdn.com/w80/mt.png", 
+                leader: "Robert Abela", leaderParty: "PL", leaderPartyFull: "Partido Laborista", leaderPhoto: "fotos/malta-robert-abela.jpg", 
+                stateHead: "Myriam Spiteri Debono", stateHeadParty: "PL", stateHeadPartyFull: "Partido Laborista", stateType: "República Parlamentaria", statePhoto: "fotos/malta-myriam-spiteri-debono.jpg" 
+            },
+            "Netherlands": { 
+                name: "Países Bajos", capital: "Ámsterdam", regime: "Monarchy", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Florín (ƒ)", prevCurrencyRange: "1680-2001",
+                flag: "https://flagcdn.com/w80/nl.png", 
+                leader: "Rob Jetten", leaderParty: "D66.", leaderPartyFull: "Demócratas 66", leaderPhoto: "fotos/paises-bajos-rob-jetten.jpg", 
+                stateHead: "Guillermo Alejandro", stateType: "Monarquía Constitucional", statePhoto: "fotos/paises-bajos-guillermo-alejandro.jpeg" 
+            },
+            "Poland": { 
+                name: "Polonia", capital: "Varsovia", regime: "Republic", 
+                currency: "Zloty (PLN)", currencySince: "1995", prevCurrency: "Zloty (Antiguo)", prevCurrencyRange: "1950-1994",
+                flag: "https://flagcdn.com/w80/pl.png", 
+                leader: "Donald Tusk", leaderParty: "PO", leaderPartyFull: "Plataforma Cívica", leaderPhoto: "fotos/polonia-donald-tusk.png", 
+                stateHead: "Karol Nawrocki", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/polonia-karol-nawrocki.jpg" 
+            },
+            "Portugal": { 
+                name: "Portugal", capital: "Lisboa", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Escudo ($)", prevCurrencyRange: "1911-2001",
+                flag: "https://flagcdn.com/w80/pt.png", 
+                leader: "Luís Montenegro", leaderParty: "PSD", leaderPartyFull: "Partido Social Demócrata", leaderPhoto: "fotos/portugal-luis-montenegro.jpg", 
+                stateHead: "Antonio José Seguro", stateHeadParty: "PS", stateHeadPartyFull: "Partido Socialista", stateType: "República Semipresidencial", statePhoto: "fotos/portugal-antonio-jose-seguro.png" 
+            },
+            "Romania": { 
+                name: "Rumanía", capital: "Bucarest", regime: "Republic", 
+                currency: "Leu (RON)", currencySince: "2005", prevCurrency: "Leu (Antiguo)", prevCurrencyRange: "1867-2005",
+                flag: "https://flagcdn.com/w80/ro.png", 
+                leader: "Illie Bolojan", leaderParty: "PNL", leaderPartyFull: "Partido Nacional Liberal", leaderPhoto: "fotos/rumania-illie-bolojan.jpg", 
+                stateHead: "Nicușor Dan", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Semipresidencial", statePhoto: "fotos/rumania-nicusor-dan.jpg" 
+            },
+            "Slovakia": { 
+                name: "Eslovaquia", capital: "Bratislava", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2009", prevCurrency: "Corona Eslovaca (Sk)", prevCurrencyRange: "1993-2008",
+                flag: "https://flagcdn.com/w80/sk.png", 
+                leader: "Robert Fico", leaderParty: "Smer-SD", leaderPartyFull: "Dirección - Socialdemocracia", leaderPhoto: "fotos/eslovaquia-robert-fico.png", 
+                stateHead: "Peter Pellegrini", stateHeadParty: "Hlas", stateHeadPartyFull: "Voz - Socialdemocracia", stateType: "República Parlamentaria", statePhoto: "fotos/eslovaquia-peter-pellegrini.jpg" 
+            },
+            "Slovenia": { 
+                name: "Eslovenia", capital: "Liubliana", regime: "Republic", 
+                currency: "Euro (€)", currencySince: "2007", prevCurrency: "Tolar (SIT)", prevCurrencyRange: "1991-2006",
+                flag: "https://flagcdn.com/w80/si.png", 
+                leader: "Robert Golob", leaderParty: "GS", leaderPartyFull: "Movimiento Libertad", leaderPhoto: "fotos/eslovenia-robert-golob.jpg", 
+                stateHead: "Nataša Pirc Musar", stateHeadParty: "Indep.", stateHeadPartyFull: "Independiente", stateType: "República Parlamentaria", statePhoto: "fotos/eslovenia-natasa-pirc-musar.jpg" 
+            },
+            "Spain": { 
+                name: "España", capital: "Madrid", regime: "Monarchy", 
+                currency: "Euro (€)", currencySince: "2002", prevCurrency: "Peseta (₧)", prevCurrencyRange: "1868-2001",
+                flag: "https://flagcdn.com/w80/es.png", 
+                leader: "Pedro Sánchez", leaderParty: "PSOE", leaderPartyFull: "Partido Socialista Obrero Español", leaderPhoto: "fotos/espana-pedro-sanchez.jpg",
+                leaderHistory: `
+                    <div class="history-item"><span class="history-date">2018-2019</span><p>Primera Legislatura: Moción de censura contra Mariano Rajoy.</p></div>
+                    <div class="history-item"><span class="history-date">2020-2023</span><p>Segunda Legislatura: Gobierno de coalición con Unidas Podemos.</p></div>
+                    <div class="history-item"><span class="history-date">2023-Presente</span><p>Tercera Legislatura: Elecciones adelantadas y formación de gobierno con Sumar.</p></div>`,
+                stateHead: "Felipe VI", stateType: "Monarquía Parlamentaria", statePhoto: "fotos/espana-felipe-vi.jpg",
+                stateHeadHistory: `<p>Felipe VI fue proclamado rey de España el 19 de junio de 2014, tras la abdicación de su padre, Juan Carlos I, el 2 de junio de ese mismo año. La heredera es la princesa Leonor.</p>`
+            },
+            "Sweden": { 
+                name: "Suecia", capital: "Estocolmo", regime: "Monarchy", 
+                currency: "Corona Sueca (SEK)", currencySince: "1873", prevCurrency: "Riksdaler", prevCurrencyRange: "1777-1873",
+                flag: "https://flagcdn.com/w80/se.png", 
+                leader: "Ulf Kristersson", leaderParty: "M", leaderPartyFull: "Partido Moderado", leaderPhoto: "fotos/suecia-ulf-kristersson.jpg", 
+                stateHead: "Carlos XVI Gustavo", stateType: "Monarquía Constitucional", statePhoto: "fotos/suecia-carlos-xvi-gustavo.jpg" 
+            }
         };
 
         const map = L.map('map', { center: [52, 12], zoom: 4, zoomControl: false });
-        
-        // MAPA MUDO (Sin etiquetas de nombres)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
 
         let geojsonLayer;
 
         function getStyle(feature) {
             const country = euData[feature.properties.NAME];
-            let color = "#cbd5e0"; // Gris si no es UE
-            if (country) {
-                color = country.regime === "Monarchy" ? "#2b6cb0" : "#2f855a";
-            }
+            let color = "#cbd5e0";
+            if (country) { color = country.regime === "Monarchy" ? "#2b6cb0" : "#2f855a"; }
             return { fillColor: color, weight: 1.5, opacity: 1, color: 'white', fillOpacity: 0.8 };
         }
 
@@ -132,14 +325,29 @@
                     style: getStyle,
                     onEachFeature: (feature, layer) => {
                         layer.on({
-                            mouseover: (e) => highlight(e.target),
-                            mouseout: (e) => reset(e.target),
-                            click: (e) => highlight(e.target)
+                            mouseover: (e) => { if(!lockedCountry) highlight(e.target) },
+                            mouseout: (e) => { if(!lockedCountry) reset(e.target) },
+                            click: (e) => {
+                                L.DomEvent.stopPropagation(e);
+                                if (lockedCountry === e.target) {
+                                    lockedCountry = null;
+                                    reset(e.target);
+                                    document.getElementById('infoPanel').style.display = 'none';
+                                } else {
+                                    if(lockedCountry) reset(lockedCountry);
+                                    lockedCountry = e.target;
+                                    highlight(e.target);
+                                }
+                            }
                         });
                     }
                 }).addTo(map);
                 initSearch();
             });
+
+        map.on('click', () => {
+            if(lockedCountry) { reset(lockedCountry); lockedCountry = null; document.getElementById('infoPanel').style.display = 'none'; }
+        });
 
         function highlight(layer) {
             layer.setStyle({ fillOpacity: 1, weight: 3, color: '#f6e05e' });
@@ -153,35 +361,84 @@
             const panel = document.getElementById('infoPanel');
             if (data) {
                 panel.style.display = 'block';
+                let leadersHtml = "";
+                // Caso Chipre fusionado
+                if (data.leader === data.stateHead) {
+                    leadersHtml = `
+                        <div class="data-row" onclick="openBio('${engName}', 'leader')">
+                            <img src="${data.leaderPhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150'">
+                            <div>
+                                <span class="label">Líder de Gobierno y Jefe de Estado</span>
+                                <span class="val">${data.leader}</span>
+                                <span class="party-full">${data.leaderPartyFull} (${data.leaderParty})</span>
+                                <span class="sub-val">${data.stateType}</span>
+                            </div>
+                        </div>`;
+                } else {
+                    leadersHtml = `
+                        <div class="data-row" onclick="openBio('${engName}', 'leader')">
+                            <img src="${data.leaderPhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150'">
+                            <div>
+                                <span class="label">Líder de Gobierno</span>
+                                <span class="val">${data.leader}</span>
+                                <span class="party-full">${data.leaderPartyFull} (${data.leaderParty})</span>
+                            </div>
+                        </div>
+                        <div class="data-row" onclick="openBio('${engName}', 'state')">
+                            <img src="${data.statePhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150'">
+                            <div>
+                                <span class="label">Jefe de Estado</span>
+                                <span class="val">${data.stateHead}</span>
+                                ${data.stateHeadParty ? `<span class="party-full">${data.stateHeadPartyFull} (${data.stateHeadParty})</span>` : ''}
+                                <span class="sub-val">${data.stateType}</span>
+                            </div>
+                        </div>`;
+                }
+
                 document.getElementById('content').innerHTML = `
                     <div class="header">
                         <img src="${data.flag}" class="flag-img">
                         <h2 class="country-name">${data.name}</h2>
                     </div>
                     <div style="margin-bottom: 15px;"><span class="label">📍 Capital</span><span class="val">${data.capital}</span></div>
-                    
-                    <div class="data-row">
-                        <img src="${data.leaderPhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150?text=Subir+Foto'">
-                        <div>
-                            <span class="label">Líder de Gobierno</span>
-                            <span class="val">${data.leader}</span>
-                            <span class="party-full">${data.leaderPartyFull} (${data.leaderParty})</span>
-                        </div>
+                    ${leadersHtml}
+                    <div class="currency-section">
+                        <span class="label">Moneda Nacional</span><br>
+                        <span class="val">${data.currency} <span class="currency-badge">desde ${data.currencySince}</span></span>
+                        <span class="prev-currency">Anterior: ${data.prevCurrency} (${data.prevCurrencyRange})</span>
                     </div>
-                    
-                    <div class="data-row">
-                        <img src="${data.statePhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150?text=Subir+Foto'">
-                        <div>
-                            <span class="label">Jefe de Estado</span>
-                            <span class="val">${data.stateHead}</span>
-                            <span class="sub-val">${data.stateType}</span>
-                        </div>
-                    </div>
-                    
-                    <div><span class="label">Moneda Nacional</span><br><span class="currency-badge">${data.currency}</span></div>
                 `;
-            } else { panel.style.display = 'none'; }
+            }
         }
+
+        window.openBio = function(countryKey, type) {
+            const data = euData[countryKey];
+            const modal = document.getElementById('bioModal');
+            const body = document.getElementById('modalBody');
+            
+            const isMonarchy = data.regime === "Monarchy" && type === "state";
+            const titleBio = isMonarchy ? "Reinado" : "Historial y Legislaturas";
+            
+            const pName = (type === 'leader') ? data.leader : data.stateHead;
+            const pPhoto = (type === 'leader') ? data.leaderPhoto : data.statePhoto;
+            const pParty = (type === 'leader') ? data.leaderPartyFull : (data.stateHeadPartyFull || "");
+            const history = (type === 'leader') ? (data.leaderHistory || "Información no disponible.") : (data.stateHeadHistory || "Información no disponible.");
+            
+            body.innerHTML = `
+                <div class="modal-header">
+                    <img src="${pPhoto}" class="photo" style="width:100px; height:100px;">
+                    <div>
+                        <h2 style="margin:0; color:var(--eu-blue);">${pName}</h2>
+                        <p style="margin:5px 0; font-weight:600;">${pParty}</p>
+                    </div>
+                </div>
+                <h3>${titleBio}</h3>
+                <div>${history}</div>`;
+            modal.style.display = "block";
+        }
+
+        window.closeBio = function() { document.getElementById('bioModal').style.display = "none"; }
+        window.onclick = function(event) { if (event.target == document.getElementById('bioModal')) closeBio(); }
 
         function initSearch() {
             const input = document.getElementById('countrySearch');
@@ -199,6 +456,7 @@
                         if (layer.feature.properties.NAME === engName) {
                             map.flyTo(layer.getBounds().getCenter(), 5);
                             highlight(layer);
+                            lockedCountry = layer;
                         }
                     });
                 }
