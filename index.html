@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Político UE - Versión Final Profesional</title>
+    
+    <!-- Leaflet (Motor de mapas) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --monarquia: #2b6cb0; /* Azul */
+            --republica: #2f855a; /* Verde */
+            --eu-blue: #003399;
+            --white: #ffffff;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; background: #e2e8f0; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; background: #aadaff; }
+
+        /* Buscador */
+        .search-container {
+            position: absolute; top: 20px; left: 20px; z-index: 1000; width: 260px;
+        }
+        #countrySearch {
+            width: 100%; padding: 12px 16px; border-radius: 10px; border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-size: 1rem; outline: none;
+        }
+
+        /* Panel de Información */
+        .info-panel {
+            position: absolute; top: 20px; right: 20px; width: 360px; max-height: 90vh;
+            background: rgba(255, 255, 255, 0.98); border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25); padding: 20px;
+            z-index: 1000; display: none; overflow-y: auto; border: 1px solid #cbd5e0;
+        }
+
+        .header { display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #edf2f7; padding-bottom: 15px; margin-bottom: 15px; }
+        .flag-img { width: 50px; border-radius: 4px; border: 1px solid #ddd; }
+        .country-name { margin: 0; font-size: 1.5rem; color: var(--eu-blue); font-weight: 700; }
+
+        .data-row { display: flex; align-items: center; gap: 15px; background: #f7fafc; padding: 12px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; }
+        .photo { width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); background: #eee; }
+        
+        .label { font-size: 0.65rem; text-transform: uppercase; color: #718096; font-weight: 700; letter-spacing: 0.5px; }
+        .val { font-size: 0.95rem; font-weight: 700; color: #2d3748; display: block; line-height: 1.2; }
+        .party-full { font-size: 0.8rem; color: #4a5568; font-style: italic; display: block; margin-top: 2px; }
+
+        .currency-badge { background: #f6e05e; color: #744210; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+
+        .legend { position: absolute; bottom: 30px; left: 20px; background: white; padding: 10px; border-radius: 8px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 0.8rem; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 600; }
+        .dot { width: 12px; height: 12px; border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .info-panel { width: calc(100% - 40px); top: auto; bottom: 20px; left: 20px; right: 20px; max-height: 45vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="search-container">
+        <input type="text" id="countrySearch" placeholder="🔍 Buscar país..." list="eu-list">
+        <datalist id="eu-list"></datalist>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="dot" style="background: var(--monarquia)"></div> Monarquía</div>
+        <div class="legend-item"><div class="dot" style="background: var(--republica)"></div> República</div>
+    </div>
+
+    <div id="map"></div>
+    <div id="infoPanel" class="info-panel"><div id="content"></div></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // BASE DE DATOS DE LOS 27 PAÍSES
+        // Nota: leaderPhoto y statePhoto apuntan a una carpeta local llamada "fotos/"
+        const euData = {
+            "Austria": { name: "Austria", capital: "Viena", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/at.png", leader: "Christian Stocker", leaderParty: "ÖVP", leaderPartyFull: "Partido Popular Austríaco", leaderPhoto: "fotos/austria-christian-stocker.jpg", stateHead: "Alexander Van der Bellen", stateType: "República Federal", statePhoto: "fotos/austria-alexander-van-der-bellen.jpg" },
+            "Belgium": { name: "Bélgica", capital: "Bruselas", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/be.png", leader: "Bart De Wever", leaderParty: "NVA", leaderPartyFull: "Nueva Alianza Flamenca", leaderPhoto: "fotos/belgica-bart-de-wever.jpg", stateHead: "Felipe de Bélgica", stateType: "Monarquía Constitucional", statePhoto: "fotos/belgica-felipe-de-belgica.jpg" },
+            "Bulgaria": { name: "Bulgaria", capital: "Sofía", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/bg.png", leader: "Andréi Atánasov Gyúrov", leaderParty: "PP", leaderPartyFull: "Continuamos el Cambio (Prodŭlzhavame promyanata)", leaderPhoto: "fotos/bulgaria-andrey-gurov.jpg", stateHead: "Iliana Yotova", stateType: "República Parlamentaria", statePhoto: "fotos/bulgaria-iliana-yotova.jpg" },
+            "Croatia": { name: "Croacia", capital: "Zagreb", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/hr.png", leader: "Andrej Plenković", leaderParty: "HDZ", leaderPartyFull: "Unión Democrática Croata", leaderPhoto: "fotos/croacia-andrej-plenkovic.jpg", stateHead: "Zoran Milanović", stateType: "República Parlamentaria", statePhoto: "fotos/croacia-zoran-milanovic.jpg" },
+            "Cyprus": { name: "Chipre", capital: "Nicosia", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/cy.png", leader: "Nikos Christodoulides", leaderParty: "Indep.", leaderPartyFull: "Independiente", leaderPhoto: "fotos/chipre-nikos-christodoulides.jpg" },
+            "Czech Republic": { name: "Chequia", capital: "Praga", regime: "Republic", currency: "Corona Checa (CZK)", flag: "https://flagcdn.com/w80/cz.png", leader: "Andrej Babiš", leaderParty: "ANO 2011", leaderPartyFull: "Alianza de Ciudadanos Descontentos", leaderPhoto: "fotos/chequia-andrej-babis.jpg", stateHead: "Petr Pavel", stateType: "República Parlamentaria", statePhoto: "fotos/chequia-petr-pavel.jpg" },
+            "Denmark": { name: "Dinamarca", capital: "Copenhague", regime: "Monarchy", currency: "Corona Danesa (DKK)", flag: "https://flagcdn.com/w80/dk.png", leader: "Mette Frederiksen", leaderParty: "S", leaderPartyFull: "Socialdemócratas", leaderPhoto: "fotos/dinamarca-mette-frederiksen.jpg", stateHead: "Federico X", stateType: "Monarquía Constitucional", statePhoto: "fotos/dinamarca-federico-x.jpg" },
+            "Estonia": { name: "Estonia", capital: "Tallín", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/ee.png", leader: "Kristen Michal", leaderParty: "ER", leaderPartyFull: "Partido Reformista Estonio", leaderPhoto: "fotos/estonia-kristen-michal.jpg", stateHead: "Alar Karis", stateType: "República Parlamentaria", statePhoto: "fotos/estonia-alar-karis.jpg" },
+            "Finland": { name: "Finlandia", capital: "Helsinki", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/fi.png", leader: "Petteri Orpo", leaderParty: "Kok.", leaderPartyFull: "Partido de la Coalición Nacional", leaderPhoto: "fotos/finlandia-petteri-orpo.jpg", stateHead: "Alexander Stubb", stateType: "República Parlamentaria", statePhoto: "fotos/finlandia-alexander-stubb.jpg" },
+            "France": { name: "Francia", capital: "París", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/fr.png", leader: "Sébastien Lecornu", leaderParty: "RE", leaderPartyFull: "Renacimiento", leaderPhoto: "fotos/francia-sebastien-lecornu.jpg", stateHead: "Emmanuel Macron", stateType: "República Semipresidencial", statePhoto: "fotos/francia-emmanuelle-macron.jpg" },
+            "Germany": { name: "Alemania", capital: "Berlín", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/de.png", leader: "Friedrich Merz", leaderParty: "CDU", leaderPartyFull: "Unión Demócrata Cristiana", leaderPhoto: "fotos/alemania-friedrich-merz.jpg", stateHead: "Frank-Walter Steinmeier", stateType: "República Federal", statePhoto: "fotos/alemania-frank-walter-steinmeier.jpg" },
+            "Greece": { name: "Grecia", capital: "Atenas", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/gr.png", leader: "Kyriakos Mitsotakis", leaderParty: "ND", leaderPartyFull: "Nueva Democracia", leaderPhoto: "fotos/grecia-kyriakos-mitsotakis.jpg", stateHead: "Konstantinos Tasoulas", stateType: "República Parlamentaria", statePhoto: "fotos/grecia-konstantinos-tasoulas.jpg" },
+            "Hungary": { name: "Hungría", capital: "Budapest", regime: "Republic", currency: "Florín (HUF)", flag: "https://flagcdn.com/w80/hu.png", leader: "Péter Magyar", leaderParty: "TISZA", leaderPartyFull: "Tisza-Partido Respeto y Libertad", leaderPhoto: "fotos/hungria-peter-magyar.jpg", stateHead: "Tamás Sulyok", stateType: "República Parlamentaria", statePhoto: "fotos/hungria-tamas-sulyok.jpg" },
+            "Ireland": { name: "Irlanda", capital: "Dublín", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/ie.png", leader: "Micheál Martin", leaderParty: "FF", leaderPartyFull: "Fianna Fáil (Partido Republicano)", leaderPhoto: "fotos/irlanda-micheal-martin.png", stateHead: "Catherine Connolly", stateType: "República Parlamentaria", statePhoto: "fotos/irlanda-catherine-connolly.jpg" },
+            "Italy": { name: "Italia", capital: "Roma", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/it.png", leader: "Giorgia Meloni", leaderParty: "FdI", leaderPartyFull: "Fratelli d'Italia (Hermanos de Italia)", leaderPhoto: "fotos/italia-giorgia-meloni.png", stateHead: "Sergio Mattarella", stateType: "República Parlamentaria", statePhoto: "fotos/italia-sergio_mattarella.jpg" },
+            "Latvia": { name: "Letonia", capital: "Riga", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/lv.png", leader: "Evika Siliņa", leaderParty: "V", leaderPartyFull: "Nueva Unidad", leaderPhoto: "fotos/letonia-evika-silina.jpg", stateHead: "Edgars Rinkēvičs", stateType: "República Parlamentaria", statePhoto: "fotos/letonia-edgars-rinkevics.jpg" },
+            "Lithuania": { name: "Lituania", capital: "Vilna", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/lt.png", leader: "Inga Ruginienė", leaderParty: "LSDP", leaderPartyFull: "Partido Socialdemócrata Lituano", leaderPhoto: "fotos/lituania-inga-ruginiene.jpeg", stateHead: "Gitanas Nausėda", stateType: "República Parlamentaria", statePhoto: "fotos/lituania-gitanas-nauseda.jpg" },
+            "Luxembourg": { name: "Luxemburgo", capital: "Luxemburgo", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/lu.png", leader: "Luc Frieden", leaderParty: "CSV", leaderPartyFull: "Partido Popular Social Cristiano", leaderPhoto: "fotos/luxemburgo-luc-frieden.jpg", stateHead: "Guillermo V de Luxemburgo", stateType: "Monarquía Constitucional", statePhoto: "fotos/luxemburgo-guillermo-v.jpg" },
+            "Malta": { name: "Malta", capital: "La Valeta", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/mt.png", leader: "Robert Abela", leaderParty: "PL", leaderPartyFull: "Partido Laborista", leaderPhoto: "fotos/malta-robert-abela.jpg", stateHead: "Myriam Spiteri Debono", stateType: "República Parlamentaria", statePhoto: "fotos/malta-myriam-spiteri-debono.jpg" },
+            "Netherlands": { name: "Países Bajos", capital: "Ámsterdam", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/nl.png", leader: "Rob Jetten", leaderParty: "D66.", leaderPartyFull: "Demócratas 66", leaderPhoto: "fotos/paises-bajos-rob-jetten.jpg", stateHead: "Guillermo Alejandro", stateType: "Monarquía Constitucional", statePhoto: "fotos/paises-bajos-guillermo-alejandro.jpeg" },
+            "Poland": { name: "Polonia", capital: "Varsovia", regime: "Republic", currency: "Zloty (PLN)", flag: "https://flagcdn.com/w80/pl.png", leader: "Donald Tusk", leaderParty: "PO", leaderPartyFull: "Plataforma Cívica", leaderPhoto: "fotos/polonia-donald-tusk.png", stateHead: "Karol Nawrocki", stateType: "República Parlamentaria", statePhoto: "fotos/polonia-karol-nawrocki.jpg" },
+            "Portugal": { name: "Portugal", capital: "Lisboa", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/pt.png", leader: "Luís Montenegro", leaderParty: "PSD", leaderPartyFull: "Partido Social Demócrata", leaderPhoto: "fotos/portugal-luis-montenegro.jpg", stateHead: "Antonio José Seguro", stateType: "República Semipresidencial", statePhoto: "fotos/portugal-antonio-jose-seguro.png" },
+            "Romania": { name: "Rumanía", capital: "Bucarest", regime: "Republic", currency: "Leu (RON)", flag: "https://flagcdn.com/w80/ro.png", leader: "Illie Bolojan", leaderParty: "PNL", leaderPartyFull: "Partido Nacional Liberal", leaderPhoto: "fotos/rumania-illie-bolojan.jpg", stateHead: "Nicușor Dan", stateType: "República Semipresidencial", statePhoto: "fotos/rumania-nicusor-dan.jpg" },
+            "Slovakia": { name: "Eslovaquia", capital: "Bratislava", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/sk.png", leader: "Robert Fico", leaderParty: "Smer-SD", leaderPartyFull: "Dirección - Socialdemocracia", leaderPhoto: "fotos/eslovaquia-robert-fico.png", stateHead: "Peter Pellegrini", stateType: "República Parlamentaria", statePhoto: "fotos/eslovaquia-peter-pellegrini.jpg" },
+            "Slovenia": { name: "Eslovenia", capital: "Liubliana", regime: "Republic", currency: "Euro (€)", flag: "https://flagcdn.com/w80/si.png", leader: "Robert Golob", leaderParty: "GS", leaderPartyFull: "Movimiento Libertad", leaderPhoto: "fotos/eslovenia-robert-golob.jpg", stateHead: "Nataša Pirc Musar", stateType: "República Parlamentaria", statePhoto: "fotos/eslovenia-natasa-pirc-musar.jpg" },
+            "Spain": { name: "España", capital: "Madrid", regime: "Monarchy", currency: "Euro (€)", flag: "https://flagcdn.com/w80/es.png", leader: "Pedro Sánchez", leaderParty: "PSOE", leaderPartyFull: "Partido Socialista Obrero Español", leaderPhoto: "fotos/espana-pedro-sanchez.jpg", stateHead: "Felipe VI", stateType: "Monarquía Parlamentaria", statePhoto: "fotos/espana-felipe-vi.jpg" },
+            "Sweden": { name: "Suecia", capital: "Estocolmo", regime: "Monarchy", currency: "Corona Sueca (SEK)", flag: "https://flagcdn.com/w80/se.png", leader: "Ulf Kristersson", leaderParty: "M", leaderPartyFull: "Partido Moderado", leaderPhoto: "fotos/suecia-ulf-kristersson.jpg", stateHead: "Carlos XVI Gustavo", stateType: "Monarquía Constitucional", statePhoto: "fotos/suecia-carlos-xvi-gustavo.jpg" }
+        };
+
+        const map = L.map('map', { center: [52, 12], zoom: 4, zoomControl: false });
+        
+        // MAPA MUDO (Sin etiquetas de nombres)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
+
+        let geojsonLayer;
+
+        function getStyle(feature) {
+            const country = euData[feature.properties.NAME];
+            let color = "#cbd5e0"; // Gris si no es UE
+            if (country) {
+                color = country.regime === "Monarchy" ? "#2b6cb0" : "#2f855a";
+            }
+            return { fillColor: color, weight: 1.5, opacity: 1, color: 'white', fillOpacity: 0.8 };
+        }
+
+        fetch('https://raw.githubusercontent.com/leakyMirror/map-of-europe/master/GeoJSON/europe.geojson')
+            .then(res => res.json())
+            .then(data => {
+                geojsonLayer = L.geoJSON(data, {
+                    style: getStyle,
+                    onEachFeature: (feature, layer) => {
+                        layer.on({
+                            mouseover: (e) => highlight(e.target),
+                            mouseout: (e) => reset(e.target),
+                            click: (e) => highlight(e.target)
+                        });
+                    }
+                }).addTo(map);
+                initSearch();
+            });
+
+        function highlight(layer) {
+            layer.setStyle({ fillOpacity: 1, weight: 3, color: '#f6e05e' });
+            showInfo(layer.feature.properties.NAME);
+        }
+
+        function reset(layer) { geojsonLayer.resetStyle(layer); }
+
+        function showInfo(engName) {
+            const data = euData[engName];
+            const panel = document.getElementById('infoPanel');
+            if (data) {
+                panel.style.display = 'block';
+                document.getElementById('content').innerHTML = `
+                    <div class="header">
+                        <img src="${data.flag}" class="flag-img">
+                        <h2 class="country-name">${data.name}</h2>
+                    </div>
+                    <div style="margin-bottom: 15px;"><span class="label">📍 Capital</span><span class="val">${data.capital}</span></div>
+                    
+                    <div class="data-row">
+                        <img src="${data.leaderPhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150?text=Subir+Foto'">
+                        <div>
+                            <span class="label">Líder de Gobierno</span>
+                            <span class="val">${data.leader}</span>
+                            <span class="party-full">${data.leaderPartyFull} (${data.leaderParty})</span>
+                        </div>
+                    </div>
+                    
+                    <div class="data-row">
+                        <img src="${data.statePhoto}" class="photo" onerror="this.src='https://via.placeholder.com/150?text=Subir+Foto'">
+                        <div>
+                            <span class="label">Jefe de Estado</span>
+                            <span class="val">${data.stateHead}</span>
+                            <span class="sub-val">${data.stateType}</span>
+                        </div>
+                    </div>
+                    
+                    <div><span class="label">Moneda Nacional</span><br><span class="currency-badge">${data.currency}</span></div>
+                `;
+            } else { panel.style.display = 'none'; }
+        }
+
+        function initSearch() {
+            const input = document.getElementById('countrySearch');
+            const datalist = document.getElementById('eu-list');
+            Object.values(euData).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                datalist.appendChild(opt);
+            });
+            input.addEventListener('input', (e) => {
+                const query = e.target.value;
+                const engName = Object.keys(euData).find(key => euData[key].name === query);
+                if (engName) {
+                    geojsonLayer.eachLayer(layer => {
+                        if (layer.feature.properties.NAME === engName) {
+                            map.flyTo(layer.getBounds().getCenter(), 5);
+                            highlight(layer);
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
